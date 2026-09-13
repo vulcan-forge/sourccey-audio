@@ -91,7 +91,8 @@ class VoiceRuntime:
                 self._last_audio_diagnostic_at = now
             results: list[InteractionResult] = []
             for update in self.vad.push(samples, probability):
-                logger.info("[VAD] %s", update.event.value)
+                log = logger.debug if update.event == VadEvent.SPEECH_CONTINUING else logger.info
+                log("[VAD] %s", update.event.value)
                 if update.event == VadEvent.SPEECH_STARTED:
                     self.recognizer.start()
                     self.recognizer.push_audio(update.samples, sample_rate)
