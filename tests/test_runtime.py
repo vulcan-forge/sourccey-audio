@@ -3,12 +3,17 @@ import numpy as np
 from sourccey_voice.commands import CommandRegistry
 from sourccey_voice.config import VadConfig
 from sourccey_voice.conversation import ConversationHistory
-from sourccey_voice.runtime import VoiceRuntime
+from sourccey_voice.runtime import VoiceRuntime, normalize_transcript
 from sourccey_voice.types import ConversationReply
 from sourccey_voice.vad import VoiceActivityDetector
 from sourccey_voice.wake import WakeSession
 
 from .fakes import FakeConversation, FakeProbability, FakeRecognizer, FakeRobot, FakeSpeaker, FakeTts
+
+
+def test_sourccey_stt_aliases_are_normalized():
+    assert normalize_transcript("Hello, sourcing.") == "Hello, Sourccey."
+    assert normalize_transcript("Hi sourcey") == "Hi Sourccey"
 
 
 def make_runtime(

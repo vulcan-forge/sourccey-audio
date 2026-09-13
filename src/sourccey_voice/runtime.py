@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -15,6 +16,13 @@ from .vad import SpeechProbability, VadEvent, VoiceActivityDetector
 from .wake import WakeSession
 
 logger = logging.getLogger(__name__)
+
+_SOURCCEY_TRANSCRIPT_ALIASES = re.compile(r"\b(?:sourcing|sourcey)\b", re.IGNORECASE)
+
+
+def normalize_transcript(text: str) -> str:
+    """Normalize the recurring STT spellings of Sourccey's name before routing."""
+    return _SOURCCEY_TRANSCRIPT_ALIASES.sub("Sourccey", text)
 
 
 @dataclass(frozen=True)
@@ -99,7 +107,7 @@ class VoiceRuntime:
                     if update.samples.size:
                         self.recognizer.push_audio(update.samples, sample_rate)
                     started = time.perf_counter()
-                    transcript = self.recognizer.finalize().strip()
+                    transcript = normalize_transcript(self.recognizer.finalize().strip())
                     logger.info('[STT] "%s"', transcript)
                     if self.latency_metrics:
                         logger.info(
