@@ -28,6 +28,10 @@ class LlamaCppConversationEngine:
             from llama_cpp import Llama
         except ImportError as exc:
             raise RuntimeError("llama.cpp is unavailable; install sourccey-voice[llm]") from exc
+        if device in {"cuda", "gpu"} and not llama_cpp.llama_supports_gpu_offload():
+            raise RuntimeError(
+                "llama.cpp was configured for CUDA, but this llama-cpp-python build has no GPU support"
+            )
         gpu_layers = -1 if device in {"auto", "cuda", "gpu"} else 0
         self._model = Llama(
             model_path=model_path,
