@@ -212,6 +212,9 @@ class VoiceHostServer:
             ):
                 await websocket.close(code=4001, reason="authentication failed")
                 return
+            # The robot and desktop use independent wall clocks. Anchor audio freshness
+            # to their authenticated connection rather than assuming NTP-level alignment.
+            clock_offset_ms = int(time.time() * 1000) - hello.created_at_ms
             self.speaker.attach(websocket.send, asyncio.get_running_loop())
             self._last_sequence = hello.sequence
             logger.info("[NETWORK] robot audio endpoint connected")
@@ -220,12 +223,18 @@ class VoiceHostServer:
                     message = VoiceMessage.from_json(
                         raw,
                         max_bytes=self.config.max_message_bytes,
-                        stale_after_ms=self.config.stale_after_ms,
                     )
                     if message.sequence <= self._last_sequence:
                         raise ValueError("duplicate or out-of-order message")
                     self._last_sequence = message.sequence
                     if message.type == MessageType.AUDIO_INPUT:
+                        received_age_ms = (
+                            int(time.time() * 1000) - (message.created_at_ms + clock_offset_ms)
+                        )
+                        if received_age_ms > self.config.stale_after_ms:
+                            raise ValueError("stale audio message")
+                        if received_age_ms < -self.config.stale_after_ms:
+                            raise ValueError("audio message timestamp is too far in the future")
                         pcm16, sample_rate = decode_audio(message)
                         results = await asyncio.to_thread(self.runtime.push_pcm16, pcm16, sample_rate)
                         for result in results:
