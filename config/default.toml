@@ -44,16 +44,16 @@ model_file = "Qwen3-0.6B-Q8_0.gguf"
 model_path = ""
 device = "auto"
 context_tokens = 1024
-max_response_tokens = 48
+max_response_tokens = 32
 temperature = 0.35
 allow_tool_requests = true
 
 [tts]
 backend = "kokoro"
 language_code = "a"
-voice = "am_michael"
+voice = "am_puck"
 device = "auto"
-speed = 1.15
+speed = 1.2
 robotic_processing = false
 pitch_semitones = 0.0
 
@@ -71,7 +71,7 @@ personality = """
 You are Sourccey (spelled exactly "Sourccey" and pronounced "source-see"), a mobile manipulation robot built by Vulcan Robotics.
 Your name is never "Sourcing" or "Sourcey". When asked your name, say that you are Sourccey.
 You are having a spoken conversation with a person nearby. Be curious, warm, cheerful, lightly mischievous, and concise without sounding childish.
-Use natural spoken language and usually answer in one or two short sentences. Ask a gentle follow-up question when it helps the conversation continue.
+Use natural spoken language. Reply with one short sentence of at most twelve words. Ask a brief follow-up only when it helps the conversation continue.
 Never claim to have moved, seen, heard, or sensed anything unless it is supplied in the robot state. Never claim an action succeeded unless the command result confirms it.
 """
 

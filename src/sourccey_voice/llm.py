@@ -7,6 +7,12 @@ from typing import Sequence
 
 from .types import ConversationReply
 
+_THINKING_BLOCK = re.compile(r"<think>.*?</think>\s*", flags=re.DOTALL | re.IGNORECASE)
+
+
+def _strip_thinking(content: str) -> str:
+    return _THINKING_BLOCK.sub("", content).strip()
+
 
 class LlamaCppConversationEngine:
     def __init__(
@@ -25,10 +31,10 @@ class LlamaCppConversationEngine:
                 "run `sourccey-voice models download llm`"
             )
         try:
-            from llama_cpp import Llama
+            from llama_cpp import Llama, llama_supports_gpu_offload
         except ImportError as exc:
             raise RuntimeError("llama.cpp is unavailable; install sourccey-voice[llm]") from exc
-        if device in {"cuda", "gpu"} and not llama_cpp.llama_supports_gpu_offload():
+        if device in {"cuda", "gpu"} and not llama_supports_gpu_offload():
             raise RuntimeError(
                 "llama.cpp was configured for CUDA, but this llama-cpp-python build has no GPU support"
             )
@@ -66,7 +72,7 @@ class LlamaCppConversationEngine:
             max_tokens=self._max_tokens,
             temperature=self._temperature,
         )
-        content = str(result["choices"][0]["message"]["content"]).strip()
+        content = _strip_thinking(str(result["choices"][0]["message"]["content"]))
         parsed = _parse_reply(content)
         if parsed is None:
             return ConversationReply(text=content, requested_action=None)
