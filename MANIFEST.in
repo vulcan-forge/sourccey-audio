@@ -1,0 +1,5 @@
+include README.md
+include sourccey-module.toml
+recursive-include config *.toml
+recursive-include scripts *.ps1 *.sh
+

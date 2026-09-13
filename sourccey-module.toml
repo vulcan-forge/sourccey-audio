@@ -1,0 +1,16 @@
+[module]
+id = "com.vulcanrobotics.sourccey-voice"
+name = "Sourccey Voice"
+version = "0.1.0"
+python_package = "sourccey-voice"
+config = "config/default.toml"
+
+[entrypoints]
+desktop = "sourccey-voice --config {config} host"
+robot = "sourccey-voice --config {config} robot-audio"
+developer = "sourccey-voice --config {config} dev"
+
+[safety]
+arbitrary_code_commands = false
+approved_actions = ["FOLLOW_ME", "STOP", "CANCEL", "FREEZE"]
+

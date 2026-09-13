@@ -1,0 +1,92 @@
+[audio]
+sample_rate = 16000
+channels = 1
+chunk_ms = 20
+input_device = ""
+output_device = ""
+volume = 0.85
+aec_enabled = true
+aec_required = true
+aec_stream_delay_ms = 40
+noise_suppression = true
+automatic_gain_control = true
+
+[network]
+host = "0.0.0.0"
+port = 8766
+robot_url = "ws://127.0.0.1:8766"
+auth_token = "change-me"
+max_message_bytes = 131072
+stale_after_ms = 2000
+reconnect_seconds = 2.0
+
+[vad]
+backend = "silero"
+threshold = 0.55
+min_speech_ms = 160
+silence_timeout_ms = 650
+pre_roll_ms = 240
+post_roll_ms = 120
+
+[stt]
+backend = "moonshine"
+language = "en"
+model = "UsefulSensors/moonshine-streaming-medium"
+model_path = ""
+architecture = "medium_streaming"
+device = "auto"
+partial_interval_seconds = 0.35
+
+[llm]
+backend = "llama_cpp"
+model = "Qwen/Qwen3-4B-GGUF"
+model_file = "Qwen3-4B-Q4_K_M.gguf"
+model_path = ""
+device = "auto"
+context_tokens = 4096
+max_response_tokens = 128
+temperature = 0.35
+allow_tool_requests = true
+
+[tts]
+backend = "kokoro"
+language_code = "a"
+voice = "af_heart"
+device = "auto"
+speed = 1.08
+robotic_processing = false
+pitch_semitones = 0.0
+
+[wake]
+enabled = false
+phrases = ["sourccey", "hey sourccey"]
+engaged_seconds = 20.0
+emergency_bypass = true
+
+[conversation]
+max_turns = 6
+max_characters = 6000
+inactivity_seconds = 120.0
+personality = """
+You are Sourccey, a mobile manipulation robot built by Vulcan Robotics.
+Be curious, cheerful, slightly mischievous, concise, and cute without sounding childish.
+Usually answer in one or two sentences. Never claim an action succeeded unless the command result confirms it.
+Never invent sensor observations or claim to see, hear, or feel something absent from the supplied robot state.
+Clearly state when a capability is unavailable.
+"""
+
+[robot]
+backend = "none"
+remote_ip = "127.0.0.1"
+fresh_state_timeout_seconds = 1.0
+
+[logging]
+level = "INFO"
+debug_partials = false
+latency_metrics = true
+
+[commands]
+follow_me = ["follow me", "start following me", "follow", "come with me"]
+stop = ["stop", "stop moving", "halt"]
+cancel = ["cancel", "cancel that", "never mind"]
+freeze = ["freeze", "freeze now", "hold position"]
