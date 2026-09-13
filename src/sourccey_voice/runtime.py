@@ -61,6 +61,7 @@ class VoiceRuntime:
         self.allow_tool_requests = allow_tool_requests
         self.latency_metrics = latency_metrics
         self._lock = threading.RLock()
+        self._last_audio_diagnostic_at = 0.0
 
     def push_pcm16(self, pcm16: bytes, sample_rate: int) -> list[InteractionResult]:
         if self.recognizer is None or self.probability is None or self.vad is None:
@@ -70,6 +71,16 @@ class VoiceRuntime:
         samples = np.frombuffer(pcm16, dtype="<i2").astype(np.float32) / 32768.0
         with self._lock:
             probability = self.probability.probability(samples, sample_rate)
+            now = time.monotonic()
+            if self.debug_partials and now - self._last_audio_diagnostic_at >= 1.0:
+                rms = float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
+                logger.info(
+                    "[AUDIO] input_rms=%.4f vad_probability=%.3f threshold=%.3f",
+                    rms,
+                    probability,
+                    self.vad.config.threshold,
+                )
+                self._last_audio_diagnostic_at = now
             results: list[InteractionResult] = []
             for update in self.vad.push(samples, probability):
                 logger.info("[VAD] %s", update.event.value)
