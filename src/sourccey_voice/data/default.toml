@@ -39,21 +39,21 @@ partial_interval_seconds = 0.35
 
 [llm]
 backend = "llama_cpp"
-model = "Qwen/Qwen3-4B-GGUF"
-model_file = "Qwen3-4B-Q4_K_M.gguf"
+model = "Qwen/Qwen3-0.6B-GGUF"
+model_file = "Qwen3-0.6B-Q8_0.gguf"
 model_path = ""
 device = "auto"
-context_tokens = 4096
-max_response_tokens = 128
+context_tokens = 1024
+max_response_tokens = 48
 temperature = 0.35
 allow_tool_requests = true
 
 [tts]
 backend = "kokoro"
 language_code = "a"
-voice = "af_heart"
+voice = "am_michael"
 device = "auto"
-speed = 1.08
+speed = 1.15
 robotic_processing = false
 pitch_semitones = 0.0
 
