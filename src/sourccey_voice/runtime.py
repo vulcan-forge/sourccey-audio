@@ -21,7 +21,8 @@ _SOURCCEY_TRANSCRIPT_ALIASES = re.compile(
     r"\b(?:sourcing|sourcey|sourcy|sorsi|searcy|cersei|circe)\b", re.IGNORECASE
 )
 _SOURCCEY_TRANSCRIPT_PHRASES = re.compile(
-    r"\b(?:source\s+(?:and|n)\s+(?:tv|teevee)|sir,?\s+see)\b", re.IGNORECASE
+    r"\b(?:source\s+(?:and|n)\s+(?:tv|teevee)|sourced\s+seed|sir,?\s+see)\b",
+    re.IGNORECASE,
 )
 
 

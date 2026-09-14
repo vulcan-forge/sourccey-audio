@@ -19,6 +19,7 @@ def test_sourccey_stt_aliases_are_normalized():
     assert normalize_transcript("Hi, Searcy.") == "Hi, Sourccey."
     assert normalize_transcript("Hello, Cersei.") == "Hello, Sourccey."
     assert normalize_transcript("Source and TV, help me.") == "Sourccey, help me."
+    assert normalize_transcript("Sourced seed, are you ready?") == "Sourccey, are you ready?"
     assert normalize_transcript("Sir, see, are you ready?") == "Sourccey, are you ready?"
 
 
