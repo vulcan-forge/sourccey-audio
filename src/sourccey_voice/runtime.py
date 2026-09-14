@@ -17,7 +17,9 @@ from .wake import WakeSession
 
 logger = logging.getLogger(__name__)
 
-_SOURCCEY_TRANSCRIPT_ALIASES = re.compile(r"\b(?:sourcing|sourcey|sourcy|sorsi)\b", re.IGNORECASE)
+_SOURCCEY_TRANSCRIPT_ALIASES = re.compile(
+    r"\b(?:sourcing|sourcey|sourcy|sorsi|cersei|circe)\b", re.IGNORECASE
+)
 
 
 def normalize_transcript(text: str) -> str:

@@ -16,6 +16,7 @@ def test_sourccey_stt_aliases_are_normalized():
     assert normalize_transcript("Hi sourcey") == "Hi Sourccey"
     assert normalize_transcript("Hello, Sorsi.") == "Hello, Sourccey."
     assert normalize_transcript("Hey, Sourcy.") == "Hey, Sourccey."
+    assert normalize_transcript("Hello, Cersei.") == "Hello, Sourccey."
 
 
 def make_runtime(
