@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import soundfile as sf
@@ -10,7 +11,7 @@ from qwen_tts import Qwen3TTSModel
 
 
 MODEL_ID = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
-VOICE_DESCRIPTION = (
+SOURCCINA_DESCRIPTION = (
     "A small, cheerful service robot with an androgynous youthful voice. "
     "Clear and friendly with a light synthetic texture, playful but not childish, "
     "warm, expressive, and easy to understand through a compact speaker."
@@ -21,6 +22,14 @@ SAMPLE_TEXT = (
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--name", default="sourccina", help="Output voice name.")
+    parser.add_argument(
+        "--description",
+        default=SOURCCINA_DESCRIPTION,
+        help="Natural-language voice design brief.",
+    )
+    args = parser.parse_args()
     if not torch.cuda.is_available():
         raise RuntimeError("Qwen3-TTS trial requires a CUDA-capable PyTorch installation.")
     model = Qwen3TTSModel.from_pretrained(
@@ -31,9 +40,9 @@ def main() -> None:
     wavs, sample_rate = model.generate_voice_design(
         text=SAMPLE_TEXT,
         language="English",
-        instruct=VOICE_DESCRIPTION,
+        instruct=args.description,
     )
-    output = Path("artifacts/qwen-tts/sourccey-voice-design.wav")
+    output = Path("artifacts/qwen-tts") / f"{args.name}.wav"
     output.parent.mkdir(parents=True, exist_ok=True)
     sf.write(output, wavs[0], sample_rate)
     print(output.resolve())
