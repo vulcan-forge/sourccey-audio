@@ -44,6 +44,7 @@ def build_runtime(config: VoiceConfig, speaker: object) -> VoiceRuntime:
         max_response_tokens=config.llm.max_response_tokens,
         temperature=config.llm.temperature,
         device=config.llm.device,
+        structured_response=config.llm.structured_response,
     )
     if config.tts.backend != "kokoro":
         raise ValueError(f"unsupported TTS backend: {config.tts.backend}")

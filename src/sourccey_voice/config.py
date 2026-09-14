@@ -66,6 +66,7 @@ class LlmConfig:
     max_response_tokens: int = 128
     temperature: float = 0.35
     allow_tool_requests: bool = True
+    structured_response: bool = True
 
 
 @dataclass(frozen=True)

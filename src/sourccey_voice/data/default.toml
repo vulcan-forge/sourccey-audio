@@ -47,6 +47,7 @@ context_tokens = 1024
 max_response_tokens = 32
 temperature = 0.35
 allow_tool_requests = true
+structured_response = true
 
 [tts]
 backend = "kokoro"

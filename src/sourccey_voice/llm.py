@@ -24,6 +24,7 @@ class LlamaCppConversationEngine:
         max_response_tokens: int = 128,
         temperature: float = 0.35,
         device: str = "auto",
+        structured_response: bool = True,
     ) -> None:
         if not model_path or not Path(model_path).is_file():
             raise RuntimeError(
@@ -48,6 +49,7 @@ class LlamaCppConversationEngine:
         self._personality = personality.strip()
         self._max_tokens = max_response_tokens
         self._temperature = temperature
+        self._structured_response = structured_response
 
     def generate(
         self,
@@ -55,17 +57,23 @@ class LlamaCppConversationEngine:
         robot_state: dict[str, object],
         available_actions: Sequence[str],
     ) -> ConversationReply:
-        actions = list(available_actions)
-        instruction = (
-            f"{self._personality}\n\n"
-            "Reply as one JSON object with exactly these fields: "
-            '{"text":"short spoken reply","requested_action":null}. '
-            "requested_action may be null or one exact item from AVAILABLE_ACTIONS. "
-            "Never create another action name, never say an action succeeded, and do not expose reasoning. "
-            "/no_think\n"
-            f"AVAILABLE_ACTIONS={json.dumps(actions)}\n"
-            f"CURRENT_ROBOT_STATE={json.dumps(robot_state, separators=(',', ':'))}"
-        )
+        if self._structured_response:
+            actions = list(available_actions)
+            instruction = (
+                f"{self._personality}\n\n"
+                "Reply as one JSON object with exactly these fields: "
+                '{"text":"short spoken reply","requested_action":null}. '
+                "requested_action may be null or one exact item from AVAILABLE_ACTIONS. "
+                "Never create another action name, never say an action succeeded, and do not expose reasoning. "
+                "/no_think\n"
+                f"AVAILABLE_ACTIONS={json.dumps(actions)}\n"
+                f"CURRENT_ROBOT_STATE={json.dumps(robot_state, separators=(',', ':'))}"
+            )
+        else:
+            instruction = (
+                f"{self._personality}\n\n"
+                "Reply in plain spoken text only. Do not use JSON, markup, or reasoning tags. /no_think"
+            )
         chat = [{"role": "system", "content": instruction}, *messages]
         result = self._model.create_chat_completion(
             messages=chat,
@@ -73,6 +81,8 @@ class LlamaCppConversationEngine:
             temperature=self._temperature,
         )
         content = _strip_thinking(str(result["choices"][0]["message"]["content"]))
+        if not self._structured_response:
+            return ConversationReply(text=content, requested_action=None)
         parsed = _parse_reply(content)
         if parsed is None:
             return ConversationReply(text=content, requested_action=None)
