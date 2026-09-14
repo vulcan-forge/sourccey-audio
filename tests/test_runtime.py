@@ -14,6 +14,7 @@ from .fakes import FakeConversation, FakeProbability, FakeRecognizer, FakeRobot,
 def test_sourccey_stt_aliases_are_normalized():
     assert normalize_transcript("Hello, sourcing.") == "Hello, Sourccey."
     assert normalize_transcript("Hi sourcey") == "Hi Sourccey"
+    assert normalize_transcript("Hello, Sorsi.") == "Hello, Sourccey."
 
 
 def make_runtime(
