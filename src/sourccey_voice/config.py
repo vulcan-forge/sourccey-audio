@@ -21,6 +21,7 @@ class AudioConfig:
     aec_stream_delay_ms: int = 40
     noise_suppression: bool = True
     automatic_gain_control: bool = True
+    gate_during_playback: bool = True
 
 
 @dataclass(frozen=True)

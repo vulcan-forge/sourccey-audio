@@ -78,6 +78,8 @@ class RobotAudioAgent:
         with self._lock:
             far = self._last_far
             playing = bool(self._playback) or any(far)
+        if playing and self.audio_config.gate_during_playback:
+            return
         if not self.echo.active and playing:
             return
         clean = self.echo.process(near, far)
@@ -146,4 +148,3 @@ class RobotAudioAgent:
     def _message(self, message_type: MessageType, payload: dict[str, object]) -> str:
         self._sequence += 1
         return VoiceMessage.create(message_type, self._sequence, payload).to_json()
-
