@@ -43,6 +43,7 @@ class VadConfig:
     silence_timeout_ms: int = 650
     pre_roll_ms: int = 240
     post_roll_ms: int = 120
+    always_listen_window_ms: int = 0
 
 
 @dataclass(frozen=True)
@@ -72,13 +73,10 @@ class LlmConfig:
 
 @dataclass(frozen=True)
 class TtsConfig:
-    backend: str = "kokoro"
-    language_code: str = "a"
-    voice: str = "af_heart"
-    device: str = "auto"
-    speed: float = 1.08
-    robotic_processing: bool = False
-    pitch_semitones: float = 0.0
+    backend: str = "external"
+    runtime_path: str = ""
+    factory: str = "sourccey_desktop_voice.runtime:create_tts"
+    preset_path: str = ""
 
 
 @dataclass(frozen=True)
@@ -139,6 +137,8 @@ class VoiceConfig:
             raise ValueError("vad.threshold must be between 0 and 1")
         if self.vad.min_speech_ms <= 0 or self.vad.silence_timeout_ms <= 0:
             raise ValueError("VAD durations must be positive")
+        if self.vad.always_listen_window_ms < 0:
+            raise ValueError("always_listen_window_ms must be non-negative")
         if self.vad.pre_roll_ms < 0 or self.vad.post_roll_ms < 0:
             raise ValueError("VAD roll durations cannot be negative")
         if self.conversation.max_turns < 1 or self.conversation.max_characters < 128:

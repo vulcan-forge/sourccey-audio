@@ -54,6 +54,7 @@ class SileroProbability:
         self._torch = torch
         self._model = load_silero_vad()
         self._pending = np.empty(0, dtype=np.float32)
+        self._last_probability = 0.0
 
     def probability(self, samples: np.ndarray, sample_rate: int) -> float:
         expected = 512 if sample_rate == 16000 else 256
@@ -63,10 +64,16 @@ class SileroProbability:
             window, self._pending = self._pending[:expected], self._pending[expected:]
             tensor = self._torch.from_numpy(window)
             probabilities.append(float(self._model(tensor, sample_rate).item()))
-        return max(probabilities, default=0.0)
+        # Robot audio arrives in 20 ms (320-sample) chunks, while Silero needs
+        # 512 samples. Keep the most recent score for the intervening chunk;
+        # returning zero there made VAD speech candidates reset every 20 ms.
+        if probabilities:
+            self._last_probability = max(probabilities)
+        return self._last_probability
 
     def reset(self) -> None:
         self._pending = np.empty(0, dtype=np.float32)
+        self._last_probability = 0.0
         self._model.reset_states()
 
 

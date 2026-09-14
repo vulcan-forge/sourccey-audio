@@ -155,7 +155,7 @@ class WebSocketSpeaker(Speaker):
             return
         duration = len(audio.pcm16) / 2 / audio.sample_rate
         # Keep each JSON/base64 frame comfortably below the configured default
-        # websocket limit, even when Kokoro returns a long response in one array.
+        # websocket limit, even when an external provider returns one long array.
         bytes_per_chunk = audio.sample_rate  # 500 ms of mono PCM16.
         for offset in range(0, len(audio.pcm16), bytes_per_chunk):
             chunk = audio.pcm16[offset : offset + bytes_per_chunk]

@@ -18,10 +18,11 @@ from .wake import WakeSession
 logger = logging.getLogger(__name__)
 
 _SOURCCEY_TRANSCRIPT_ALIASES = re.compile(
-    r"\b(?:sourcing|sourcey|sourcy|sorsi|searcy|cersei|circe)\b", re.IGNORECASE
+    r"\b(?:sourcing|sourcey|sourcy|sorsi|searcy|cersei|circe|sorcerer|sorcery|horsey|horsie|horsy|mercy|mersey|source-see)\b",
+    re.IGNORECASE,
 )
 _SOURCCEY_TRANSCRIPT_PHRASES = re.compile(
-    r"\b(?:source\s+(?:and|n)\s+(?:tv|teevee)|sourced\s+seed|sir,?\s+see)\b",
+    r"\b(?:source\s+(?:and|n)\s+(?:tv|teevee)|source\s+see|sourced\s+seed|sir,?\s+see)\b",
     re.IGNORECASE,
 )
 
@@ -29,7 +30,42 @@ _SOURCCEY_TRANSCRIPT_PHRASES = re.compile(
 def normalize_transcript(text: str) -> str:
     """Normalize the recurring STT spellings of Sourccey's name before routing."""
     text = _SOURCCEY_TRANSCRIPT_PHRASES.sub("Sourccey", text)
-    return _SOURCCEY_TRANSCRIPT_ALIASES.sub("Sourccey", text)
+    text = _SOURCCEY_TRANSCRIPT_ALIASES.sub("Sourccey", text)
+    return _normalize_fuzzy_wake_prefix(text)
+
+
+def _normalize_fuzzy_wake_prefix(text: str) -> str:
+    """Canonicalize a close STT misspelling only when it is used as the wake word."""
+    match = re.match(r"^(\s*(?:hey\s+)?)?([a-z]+)(?=\b)", text, re.IGNORECASE)
+    if not match:
+        return text
+    candidate = match.group(2).casefold()
+    # A five-to-eight letter word within three edits covers clipped names such
+    # as "sourc", phonetic spellings, and small transcription errors without
+    # fuzzy-rewriting ordinary short words in the rest of a conversation.
+    fuzzy_match = len(candidate) >= 5 and _edit_distance(candidate, "sourccey") <= 4
+    phonetic_match = len(candidate) >= 4 and candidate.endswith(("rsey", "rcy", "rci", "rcey", "rsy"))
+    if fuzzy_match or phonetic_match:
+        start, end = match.span(2)
+        return f"{text[:start]}Sourccey{text[end:]}"
+    return text
+
+
+def _edit_distance(left: str, right: str) -> int:
+    """Small dependency-free Levenshtein distance implementation."""
+    if len(left) > len(right):
+        left, right = right, left
+    previous = list(range(len(left) + 1))
+    for index, right_character in enumerate(right, start=1):
+        current = [index]
+        for column, left_character in enumerate(left, start=1):
+            current.append(min(
+                current[-1] + 1,
+                previous[column] + 1,
+                previous[column - 1] + (left_character != right_character),
+            ))
+        previous = current
+    return previous[-1]
 
 
 @dataclass(frozen=True)
@@ -77,6 +113,8 @@ class VoiceRuntime:
         self.latency_metrics = latency_metrics
         self._lock = threading.RLock()
         self._last_audio_diagnostic_at = 0.0
+        self._always_listen_samples = 0
+        self._always_listen_active = False
 
     def push_pcm16(self, pcm16: bytes, sample_rate: int) -> list[InteractionResult]:
         if self.recognizer is None or self.probability is None or self.vad is None:
@@ -85,6 +123,8 @@ class VoiceRuntime:
             raise ValueError("PCM16 payload must contain complete samples")
         samples = np.frombuffer(pcm16, dtype="<i2").astype(np.float32) / 32768.0
         with self._lock:
+            if self.vad.config.always_listen_window_ms:
+                return self._push_always_listen(samples, sample_rate)
             probability = self.probability.probability(samples, sample_rate)
             now = time.monotonic()
             if self.debug_partials and now - self._last_audio_diagnostic_at >= 1.0:
@@ -125,6 +165,22 @@ class VoiceRuntime:
                     if transcript:
                         results.append(self.handle_transcript(transcript))
             return results
+
+    def _push_always_listen(self, samples: np.ndarray, sample_rate: int) -> list[InteractionResult]:
+        """Fixed transcription windows for noisy rooms where VAD cannot be trusted."""
+        if not self._always_listen_active:
+            self.recognizer.start()
+            self._always_listen_active = True
+        self.recognizer.push_audio(samples, sample_rate)
+        self._always_listen_samples += samples.size
+        window_samples = int(sample_rate * self.vad.config.always_listen_window_ms / 1000)
+        if self._always_listen_samples < window_samples:
+            return []
+        self._always_listen_samples = 0
+        self._always_listen_active = False
+        transcript = normalize_transcript(self.recognizer.finalize().strip())
+        logger.info('[STT] "%s"', transcript)
+        return [self.handle_transcript(transcript)] if transcript else []
 
     def handle_transcript(self, transcript: str) -> InteractionResult:
         with self._lock:

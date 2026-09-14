@@ -51,13 +51,12 @@ allow_tool_requests = true
 structured_response = true
 
 [tts]
-backend = "kokoro"
-language_code = "a"
-voice = "am_puck"
-device = "auto"
-speed = 1.2
-robotic_processing = false
-pitch_semitones = 0.0
+backend = "external"
+# Leave these blank in a distributed module. The desktop installer can supply
+# SOURCCEY_VOICE_RUNTIME_PATH and SOURCCEY_VOICE_PRESET instead.
+runtime_path = ""
+factory = "sourccey_desktop_voice.runtime:create_tts"
+preset_path = ""
 
 [wake]
 enabled = false

@@ -7,7 +7,7 @@ from .conversation import ConversationHistory
 from .llm import LlamaCppConversationEngine
 from .runtime import VoiceRuntime
 from .stt import MoonshineRecognizer
-from .tts import KokoroTextToSpeech
+from .tts import ExternalTextToSpeech
 from .vad import SileroProbability, VoiceActivityDetector
 from .wake import WakeSession
 
@@ -46,14 +46,14 @@ def build_runtime(config: VoiceConfig, speaker: object) -> VoiceRuntime:
         device=config.llm.device,
         structured_response=config.llm.structured_response,
     )
-    if config.tts.backend != "kokoro":
+    if config.tts.backend == "external":
+        tts = ExternalTextToSpeech(
+            config.tts.runtime_path,
+            config.tts.factory,
+            config.tts.preset_path,
+        )
+    else:
         raise ValueError(f"unsupported TTS backend: {config.tts.backend}")
-    tts = KokoroTextToSpeech(
-        config.tts.language_code,
-        config.tts.voice,
-        config.tts.speed,
-        config.tts.robotic_processing,
-    )
 
     history = ConversationHistory(
         config.conversation.max_turns,

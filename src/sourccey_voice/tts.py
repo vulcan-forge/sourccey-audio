@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import importlib
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -7,47 +11,31 @@ import numpy as np
 from .types import SpeechAudio
 
 
-class KokoroTextToSpeech:
-    def __init__(
-        self,
-        language_code: str,
-        voice: str,
-        speed: float = 1.0,
-        robotic_processing: bool = False,
-    ) -> None:
+class ExternalTextToSpeech:
+    """Load an optional desktop TTS runtime without coupling this module to it."""
+
+    def __init__(self, runtime_path: str, factory: str, preset_path: str = "") -> None:
+        location = runtime_path or os.environ.get("SOURCCEY_VOICE_RUNTIME_PATH", "")
+        if not location:
+            raise RuntimeError(
+                "No desktop TTS runtime is configured. Set tts.runtime_path or "
+                "SOURCCEY_VOICE_RUNTIME_PATH."
+            )
+        directory = Path(location).expanduser().resolve()
+        if not directory.is_dir():
+            raise RuntimeError(f"Desktop TTS runtime directory was not found: {directory}")
+        if str(directory) not in sys.path:
+            sys.path.insert(0, str(directory))
         try:
-            from kokoro import KPipeline
-        except ImportError as exc:
-            raise RuntimeError("Kokoro is unavailable; install sourccey-voice[tts]") from exc
-        self._pipeline: Any = KPipeline(lang_code=language_code)
-        self._voice = voice
-        self._speed = speed
-        self._robotic_processing = robotic_processing
+            module_name, callable_name = factory.split(":", 1)
+            create_tts = getattr(importlib.import_module(module_name), callable_name)
+        except (ImportError, AttributeError, ValueError) as exc:
+            raise RuntimeError(f"Could not load desktop TTS factory {factory!r}") from exc
+        selected_preset = preset_path or os.environ.get("SOURCCEY_VOICE_PRESET", "")
+        self._delegate: Any = create_tts(preset_path=selected_preset)
 
     def synthesize(self, text: str) -> SpeechAudio:
-        chunks: list[np.ndarray] = []
-        for _graphemes, _phonemes, audio in self._pipeline(
-            text, voice=self._voice, speed=self._speed
-        ):
-            chunks.append(np.asarray(audio, dtype=np.float32))
-        if not chunks:
-            raise RuntimeError("Kokoro returned no audio")
-        samples = np.clip(np.concatenate(chunks), -1.0, 1.0)
-        if self._robotic_processing:
-            samples = _apply_robotic_treatment(samples, sample_rate=24000)
-        return SpeechAudio((samples * 32767.0).astype("<i2").tobytes(), 24000)
-
-
-def _apply_robotic_treatment(samples: np.ndarray, *, sample_rate: int) -> np.ndarray:
-    """Add a restrained digital character while preserving intelligibility."""
-    if samples.size == 0:
-        return samples
-    positions = np.arange(samples.size, dtype=np.float32) / sample_rate
-    carrier = np.sin(2.0 * np.pi * 105.0 * positions)
-    delay_samples = min(78, samples.size)
-    delayed = np.concatenate((np.zeros(delay_samples, dtype=np.float32), samples[:-delay_samples]))
-    treated = 0.72 * samples + 0.18 * delayed + 0.10 * samples * carrier
-    return np.clip(0.78 * samples + 0.22 * treated, -1.0, 1.0)
+        return self._delegate.synthesize(text)
 
 
 class SilentTextToSpeech:

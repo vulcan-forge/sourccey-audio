@@ -25,10 +25,6 @@ stt = [
     "silero-vad>=6,<7",
 ]
 llm = ["llama-cpp-python>=0.3,<1"]
-tts = [
-    "kokoro>=0.9.4,<1",
-    "soundfile>=0.13,<1",
-]
 models = ["huggingface-hub>=0.34,<2"]
 voice = [
     "sounddevice>=0.5,<1",
@@ -36,8 +32,6 @@ voice = [
     "moonshine-voice>=0.0.50,<1",
     "silero-vad>=6,<7",
     "llama-cpp-python>=0.3,<1",
-    "kokoro>=0.9.4,<1",
-    "soundfile>=0.13,<1",
     "huggingface-hub>=0.34,<2",
 ]
 dev = [
@@ -47,11 +41,11 @@ dev = [
 
 [project.scripts]
 sourccey-voice = "sourccey_voice.cli:main"
-droid-voice = "sourccey_voice.droid_voice:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
 include = ["sourccey_voice*"]
+exclude = ["tests*", "vendor*"]
 
 [tool.setuptools.package-data]
 sourccey_voice = ["data/*.toml"]
