@@ -191,6 +191,24 @@ def config_from_mapping(
         values = data.get(name, {})
         if not isinstance(values, dict):
             raise ValueError(f"configuration section {name!r} must be a table")
+        if name == "tts":
+            # Older robot-local TOML files include settings for retired built-in
+            # engines. The robot relay never instantiates TTS, so accepting
+            # them keeps deployed relay configurations forward compatible.
+            values = {
+                key: value
+                for key, value in values.items()
+                if key not in {
+                    "language_code",
+                    "voice",
+                    "device",
+                    "speed",
+                    "robotic_processing",
+                    "pitch_semitones",
+                }
+            }
+            if values.get("backend") in {"kokoro", "piper_preset"}:
+                values["backend"] = "external"
         allowed = set(section_type.__dataclass_fields__)
         extras = set(values) - allowed
         if extras:
