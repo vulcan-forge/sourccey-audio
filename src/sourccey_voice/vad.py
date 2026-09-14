@@ -89,6 +89,10 @@ class VoiceActivityDetector:
         self._silence: list[np.ndarray] = []
         self._silence_samples = 0
 
+    @property
+    def is_speaking(self) -> bool:
+        return self._speaking
+
     def push(self, samples: np.ndarray, probability: float) -> list[VadUpdate]:
         frame = samples.astype(np.float32, copy=False)
         speech = probability >= self.config.threshold

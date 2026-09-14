@@ -44,6 +44,7 @@ class VadConfig:
     pre_roll_ms: int = 240
     post_roll_ms: int = 120
     always_listen_window_ms: int = 0
+    silence_rms_threshold: float = 0.015
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,8 @@ class VoiceConfig:
             raise ValueError("VAD durations must be positive")
         if self.vad.always_listen_window_ms < 0:
             raise ValueError("always_listen_window_ms must be non-negative")
+        if self.vad.silence_rms_threshold < 0:
+            raise ValueError("vad.silence_rms_threshold must be non-negative")
         if self.vad.pre_roll_ms < 0 or self.vad.post_roll_ms < 0:
             raise ValueError("VAD roll durations cannot be negative")
         if self.conversation.max_turns < 1 or self.conversation.max_characters < 128:

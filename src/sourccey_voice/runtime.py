@@ -126,9 +126,14 @@ class VoiceRuntime:
             if self.vad.config.always_listen_window_ms:
                 return self._push_always_listen(samples, sample_rate)
             probability = self.probability.probability(samples, sample_rate)
+            rms = float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
+            # In a noisy robot environment Silero can remain confident after
+            # the person stops. Once a turn has begun, actual near-silence is
+            # a reliable endpoint signal and prevents unbounded transcripts.
+            if self.vad.is_speaking and rms < self.vad.config.silence_rms_threshold:
+                probability = 0.0
             now = time.monotonic()
             if self.debug_partials and now - self._last_audio_diagnostic_at >= 1.0:
-                rms = float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
                 logger.info(
                     "[AUDIO] input_rms=%.4f vad_probability=%.3f threshold=%.3f",
                     rms,

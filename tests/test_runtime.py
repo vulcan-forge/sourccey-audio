@@ -149,3 +149,25 @@ def test_mock_audio_to_stt_to_command_to_tts_integration():
     assert results[0].command == "STOP"
     assert robot.executed == ["STOP"]
     assert tts.texts == ["done"]
+
+
+def test_low_energy_ends_turn_when_silero_score_stays_high():
+    recognizer = FakeRecognizer("hello")
+    probability = FakeProbability([0.9, 0.9, 0.9])
+    vad = VoiceActivityDetector(
+        VadConfig(
+            min_speech_ms=20,
+            silence_timeout_ms=40,
+            pre_roll_ms=0,
+            post_roll_ms=20,
+            silence_rms_threshold=0.01,
+        ),
+        16000,
+    )
+    runtime = make_runtime(recognizer=recognizer, probability=probability, vad=vad)
+    speech = (np.ones(320) * 2000).astype("<i2").tobytes()
+    silence = np.zeros(320, dtype="<i2").tobytes()
+    assert runtime.push_pcm16(speech, 16000) == []
+    assert runtime.push_pcm16(silence, 16000) == []
+    result = runtime.push_pcm16(silence, 16000)
+    assert result[0].transcript == "hello"
