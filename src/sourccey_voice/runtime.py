@@ -20,10 +20,14 @@ logger = logging.getLogger(__name__)
 _SOURCCEY_TRANSCRIPT_ALIASES = re.compile(
     r"\b(?:sourcing|sourcey|sourcy|sorsi|searcy|cersei|circe)\b", re.IGNORECASE
 )
+_SOURCCEY_TRANSCRIPT_PHRASES = re.compile(
+    r"\b(?:source\s+(?:and|n)\s+(?:tv|teevee)|sir,?\s+see)\b", re.IGNORECASE
+)
 
 
 def normalize_transcript(text: str) -> str:
     """Normalize the recurring STT spellings of Sourccey's name before routing."""
+    text = _SOURCCEY_TRANSCRIPT_PHRASES.sub("Sourccey", text)
     return _SOURCCEY_TRANSCRIPT_ALIASES.sub("Sourccey", text)
 
 

@@ -48,7 +48,12 @@ def build_runtime(config: VoiceConfig, speaker: object) -> VoiceRuntime:
     )
     if config.tts.backend != "kokoro":
         raise ValueError(f"unsupported TTS backend: {config.tts.backend}")
-    tts = KokoroTextToSpeech(config.tts.language_code, config.tts.voice, config.tts.speed)
+    tts = KokoroTextToSpeech(
+        config.tts.language_code,
+        config.tts.voice,
+        config.tts.speed,
+        config.tts.robotic_processing,
+    )
 
     history = ConversationHistory(
         config.conversation.max_turns,
