@@ -18,7 +18,7 @@ from .wake import WakeSession
 logger = logging.getLogger(__name__)
 
 _SOURCCEY_TRANSCRIPT_ALIASES = re.compile(
-    r"\b(?:sourcing|sourcey|sourcy|sorsi|cersei|circe)\b", re.IGNORECASE
+    r"\b(?:sourcing|sourcey|sourcy|sorsi|searcy|cersei|circe)\b", re.IGNORECASE
 )
 
 

@@ -8,10 +8,14 @@ from typing import Sequence
 from .types import ConversationReply
 
 _THINKING_BLOCK = re.compile(r"<think>.*?</think>\s*", flags=re.DOTALL | re.IGNORECASE)
+_THINKING_START = re.compile(r"<think>.*$", flags=re.DOTALL | re.IGNORECASE)
 
 
 def _strip_thinking(content: str) -> str:
-    return _THINKING_BLOCK.sub("", content).strip()
+    # Qwen can exhaust max_tokens while still inside <think>. Treat the whole
+    # unfinished block as internal reasoning rather than handing it to TTS.
+    without_complete_blocks = _THINKING_BLOCK.sub("", content)
+    return _THINKING_START.sub("", without_complete_blocks).strip()
 
 
 class LlamaCppConversationEngine:

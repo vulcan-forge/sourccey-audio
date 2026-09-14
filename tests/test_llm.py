@@ -6,3 +6,7 @@ def test_thinking_wrapper_is_not_part_of_json_reply():
     reply = _parse_reply(_strip_thinking(content))
     assert reply is not None
     assert reply.text == "Hello!"
+
+
+def test_unfinished_thinking_is_never_returned_as_a_reply():
+    assert _strip_thinking("<think>internal reasoning that was cut off") == ""
