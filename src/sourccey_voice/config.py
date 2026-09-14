@@ -209,6 +209,10 @@ def config_from_mapping(
             }
             if values.get("backend") in {"kokoro", "piper_preset"}:
                 values["backend"] = "external"
+        elif name == "stt" and not values.get("model_path"):
+            values["model_path"] = os.environ.get("SOURCCEY_STT_MODEL_PATH", "")
+        elif name == "llm" and not values.get("model_path"):
+            values["model_path"] = os.environ.get("SOURCCEY_LLM_MODEL_PATH", "")
         allowed = set(section_type.__dataclass_fields__)
         extras = set(values) - allowed
         if extras:
