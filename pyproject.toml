@@ -47,6 +47,7 @@ dev = [
 
 [project.scripts]
 sourccey-voice = "sourccey_voice.cli:main"
+droid-voice = "sourccey_voice.droid_voice:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

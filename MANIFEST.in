@@ -2,4 +2,4 @@ include README.md
 include sourccey-module.toml
 recursive-include config *.toml
 recursive-include scripts *.ps1 *.sh
-
+recursive-include src/sourccey_voice/data *.toml

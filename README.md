@@ -288,6 +288,54 @@ structured action validation, unavailable and invalid actions, LLM/TTS/handler f
 history limits, state serialization, wire validation and stale frames, wake transitions, and a
 mock audio-to-command integration path. No test can move physical hardware.
 
+## Droid Voice Effects
+
+`droid_voice.py` is a reusable local effects layer for turning normal TTS into a
+friendly utility-droid character. It is deliberately pitch-conservative: the default
+`cute_helper_droid` preset leaves fundamental pitch unchanged, so its charm comes from
+machine coloration and timing rather than a childlike voice.
+
+```powershell
+python droid_voice.py input.wav output.wav
+python droid_voice.py input.wav output.wav --preset cute_helper_droid
+python droid_voice.py input.wav renders\robot.wav --ab
+```
+
+`--ab` writes four files next to the requested output: A `subtle_droid`, B
+`cute_helper_droid`, C `more_synthetic`, and D `maximum_robot`.
+
+For code integration:
+
+```python
+from sourccey_voice.droid_voice import DroidVoiceProcessor
+
+processor = DroidVoiceProcessor(preset="cute_helper_droid")
+processed_audio = processor.process(audio, sample_rate)
+
+stream = processor.stream(sample_rate)
+processed_chunk = stream.process_chunk(pcm_chunk)
+processed_pcm16 = stream.process_pcm16_chunk(pcm16_chunk)
+```
+
+The presets live in `config/droid_voice.toml`; pass `--config` with a copied file to
+tune without changing code. The most useful character controls are:
+
+- `ring_mod_mix` and `ring_mod_frequency_hz`: restrained biased AM adds machine motion
+  without erasing consonants.
+- `spectral_mix` and `formant_shift`: create compact synthetic formants; keep formant
+  shift below about `0.4` semitones to avoid youthfulness.
+- `speaker_low_hz`, `speaker_high_hz`, and `micro_delay_*`: make the result feel like a
+  small physical speaker rather than a telephone or a distant echo.
+- `saturation`, `bit_depth`, and compression: add controlled harmonic density and keep
+  quiet consonants intelligible.
+- `pitch_semitones` and `pitch_quantization_strength`: use sparingly. Raising these is
+  the main route toward an unwanted childlike sound, so every supplied preset keeps them
+  at zero.
+
+The offline path includes spectral/formant stages. `DroidVoiceStream` keeps the
+low-latency time-domain effects stateful across chunks and skips look-ahead transforms;
+its only intentional latency is the configured micro-delay.
+
 ## Troubleshooting
 
 - `network.auth_token must be changed`: edit both configs and give them the same non-default value.
@@ -330,8 +378,8 @@ path:
 - The current robotics protocol has no semantic command channel or follow-me capability.
 - The current Desktop app does not yet auto-discover or supervise `sourccey-module.toml`.
 - Wake detection is transcript-level, not a dedicated low-power wake-word engine.
-- `robotic_processing` and `pitch_semitones` are reserved configuration points; intelligibility-
-  preserving post-processing has not been enabled without listening tests on the robot speaker.
+- The built-in Kokoro `robotic_processing` is intentionally subtle. Use `droid_voice.py`
+  for a tunable character-processing chain and audition its presets on the robot speaker.
 - Only one robot audio websocket is intended per host process.
 
 These constraints are explicit so the module fails safely while the remaining robot and Desktop
