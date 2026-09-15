@@ -14,6 +14,7 @@ class VadEvent(StrEnum):
     SPEECH_STARTED = "speech_started"
     SPEECH_CONTINUING = "speech_continuing"
     SPEECH_ENDED = "speech_ended"
+    SPEECH_ABORTED = "speech_aborted"
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,39 @@ class SileroProbability:
         self._model.reset_states()
 
 
+class AdaptiveEnergyGate:
+    """Estimate room energy only between turns; protect soft speech within one."""
+
+    def __init__(self, config: VadConfig) -> None:
+        self.config = config
+        self.reset()
+
+    def reset(self) -> None:
+        self.noise_rms = self.config.energy_floor_min
+        self.speech_rms = 0.0
+        self.cutoff = self.config.energy_floor_min
+
+    def apply(self, rms: float, probability: float, speaking: bool, duration: float) -> float:
+        if not self.config.adaptive_energy:
+            if speaking and rms < self.config.silence_rms_threshold:
+                return 0.0
+            return probability
+        if not speaking:
+            self.speech_rms = rms
+            if probability < min(0.2, self.config.threshold):
+                # Slow attack avoids learning a passing voice as the room floor.
+                alpha = min(1.0, duration / (3.0 if rms > self.noise_rms else 0.5))
+                bounded = min(rms, self.config.energy_floor_max)
+                self.noise_rms += alpha * (bounded - self.noise_rms)
+        else:
+            self.speech_rms = max(rms, self.speech_rms * (0.98 ** duration))
+        ambient = float(np.clip(self.noise_rms * 1.8,
+                                self.config.energy_floor_min, self.config.energy_floor_max))
+        # A pause must also be much quieter than this person's current voice.
+        self.cutoff = min(ambient, self.speech_rms * 0.18) if speaking else ambient * 0.5
+        return 0.0 if rms <= self.cutoff else probability
+
+
 class VoiceActivityDetector:
     def __init__(self, config: VadConfig, sample_rate: int) -> None:
         self.config = config
@@ -88,6 +122,7 @@ class VoiceActivityDetector:
         self._speaking = False
         self._silence: list[np.ndarray] = []
         self._silence_samples = 0
+        self._turn_samples = 0
 
     @property
     def is_speaking(self) -> bool:
@@ -98,6 +133,12 @@ class VoiceActivityDetector:
         speech = probability >= self.config.threshold
         if not self._speaking:
             return self._push_idle(frame, speech)
+
+        self._turn_samples += frame.size
+        if self._duration_ms(self._turn_samples) >= self.config.max_utterance_ms:
+            # A limit is an abort, never permission to route a truncated command.
+            self.reset()
+            return [VadUpdate(VadEvent.SPEECH_ABORTED, np.empty(0, dtype=np.float32))]
 
         if speech:
             updates = self._flush_silence_as_continuing()
@@ -116,11 +157,13 @@ class VoiceActivityDetector:
         self._silence_samples = 0
         self._candidate.clear()
         self._candidate_samples = 0
+        self._turn_samples = 0
         self._remember(frame)
         return [VadUpdate(VadEvent.SPEECH_ENDED, tail)]
 
     def reset(self) -> None:
         self._pre_roll.clear()
+        self._turn_samples = 0
         self._pre_roll_samples = 0
         self._candidate.clear()
         self._candidate_samples = 0
@@ -137,6 +180,7 @@ class VoiceActivityDetector:
                 self._pre_roll.clear()
                 self._pre_roll_samples = 0
                 self._candidate.clear()
+                self._turn_samples = self._candidate_samples
                 self._candidate_samples = 0
                 self._speaking = True
                 return [VadUpdate(VadEvent.SPEECH_STARTED, start)]
