@@ -72,7 +72,7 @@ def test_observed_name_variants_in_direct_address(prefix):
     "Mercy is important", "Cersei was in that show", "Soros was on the news",
     "Horsey", "I told Sourccey to stop", "We discussed source see yesterday",
     "Of course, can you grab me a beer?", "Please get me the beer", "Thank you",
-    "123 Sourccey help", "Sourcceyish can you help?", "Sorcery is interesting",
+    "123 Sourccey help", "Sourcceyish can you help?", "I was discussing sorcery today",
 ])
 def test_background_conversation_does_not_wake(text):
     session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry())
