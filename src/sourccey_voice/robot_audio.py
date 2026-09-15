@@ -126,8 +126,8 @@ class RobotAudioAgent:
             if message.type == MessageType.AUDIO_OUTPUT:
                 pcm16, sample_rate = decode_audio(message)
                 if sample_rate != self.audio_config.sample_rate:
-                    logger.warning("[AUDIO] rejected playback at unexpected sample rate %d", sample_rate)
-                    continue
+                    pcm16 = self._resample_pcm16(pcm16, sample_rate, self.audio_config.sample_rate)
+                    sample_rate = self.audio_config.sample_rate
                 volume = float(np.clip(self.audio_config.volume, 0.0, 1.0))
                 samples = np.frombuffer(pcm16, dtype="<i2").astype(np.float32) * volume
                 pcm16 = np.clip(samples, -32768, 32767).astype("<i2").tobytes()
@@ -144,6 +144,18 @@ class RobotAudioAgent:
         with self._lock:
             self._playback.clear()
             self._last_far = b""
+
+    @staticmethod
+    def _resample_pcm16(pcm16: bytes, source_rate: int, target_rate: int) -> bytes:
+        if source_rate == target_rate or not pcm16:
+            return pcm16
+        samples = np.frombuffer(pcm16, dtype="<i2").astype(np.float32)
+        if samples.size < 2:
+            return pcm16
+        target_size = max(1, round(samples.size * target_rate / source_rate))
+        positions = np.linspace(0, samples.size - 1, target_size)
+        converted = np.interp(positions, np.arange(samples.size), samples)
+        return np.clip(converted, -32768, 32767).astype("<i2").tobytes()
 
     def _message(self, message_type: MessageType, payload: dict[str, object]) -> str:
         self._sequence += 1
