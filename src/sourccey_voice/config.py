@@ -156,8 +156,8 @@ class VoiceConfig:
             raise ValueError("VAD energy floor bounds must satisfy 0 < min <= max < 1")
         if self.vad.max_utterance_ms < 1000:
             raise ValueError("vad.max_utterance_ms must be at least 1000")
-        if not 0.8 <= self.wake.fuzzy_threshold <= 1.0:
-            raise ValueError("wake.fuzzy_threshold must be between 0.8 and 1.0")
+        if not 0.6 <= self.wake.fuzzy_threshold <= 1.0:
+            raise ValueError("wake.fuzzy_threshold must be between 0.6 and 1.0")
         if not 0 <= self.wake.continuation_seconds <= 5:
             raise ValueError("wake.continuation_seconds must be between 0 and 5")
         if self.wake.engaged_seconds < 0:
