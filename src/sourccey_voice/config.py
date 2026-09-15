@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .wake import DEFAULT_ALIASES, DEFAULT_CONTEXTUAL_ALIASES
+
 
 @dataclass(frozen=True)
 class AudioConfig:
@@ -44,7 +46,11 @@ class VadConfig:
     pre_roll_ms: int = 240
     post_roll_ms: int = 120
     always_listen_window_ms: int = 0
-    silence_rms_threshold: float = 0.015
+    silence_rms_threshold: float = 0.0
+    adaptive_energy: bool = True
+    energy_floor_min: float = 0.001
+    energy_floor_max: float = 0.02
+    max_utterance_ms: int = 15000
 
 
 @dataclass(frozen=True)
@@ -82,10 +88,14 @@ class TtsConfig:
 
 @dataclass(frozen=True)
 class WakeConfig:
-    enabled: bool = False
+    enabled: bool = True
     phrases: tuple[str, ...] = ("sourccey", "hey sourccey")
-    engaged_seconds: float = 20.0
-    emergency_bypass: bool = True
+    engaged_seconds: float = 0.0
+    emergency_bypass: bool = False
+    aliases: tuple[str, ...] = DEFAULT_ALIASES
+    contextual_aliases: tuple[str, ...] = DEFAULT_CONTEXTUAL_ALIASES
+    fuzzy_threshold: float = 0.88
+    continuation_seconds: float = 2.0
 
 
 @dataclass(frozen=True)
@@ -142,6 +152,16 @@ class VoiceConfig:
             raise ValueError("always_listen_window_ms must be non-negative")
         if self.vad.silence_rms_threshold < 0:
             raise ValueError("vad.silence_rms_threshold must be non-negative")
+        if not 0 < self.vad.energy_floor_min <= self.vad.energy_floor_max < 1:
+            raise ValueError("VAD energy floor bounds must satisfy 0 < min <= max < 1")
+        if self.vad.max_utterance_ms < 1000:
+            raise ValueError("vad.max_utterance_ms must be at least 1000")
+        if not 0.8 <= self.wake.fuzzy_threshold <= 1.0:
+            raise ValueError("wake.fuzzy_threshold must be between 0.8 and 1.0")
+        if not 0 <= self.wake.continuation_seconds <= 5:
+            raise ValueError("wake.continuation_seconds must be between 0 and 5")
+        if self.wake.engaged_seconds < 0:
+            raise ValueError("wake.engaged_seconds must be non-negative")
         if self.vad.pre_roll_ms < 0 or self.vad.post_roll_ms < 0:
             raise ValueError("VAD roll durations cannot be negative")
         if self.conversation.max_turns < 1 or self.conversation.max_characters < 128:
@@ -220,8 +240,14 @@ def config_from_mapping(
         extras = set(values) - allowed
         if extras:
             raise ValueError(f"unknown {name} settings: {', '.join(sorted(extras))}")
-        if name == "wake" and "phrases" in values:
-            values["phrases"] = tuple(values["phrases"])
+        if name == "wake":
+            for key in ("phrases", "aliases", "contextual_aliases"):
+                if key in values:
+                    if not isinstance(values[key], (list, tuple)) or not all(
+                        isinstance(phrase, str) and phrase.strip() for phrase in values[key]
+                    ):
+                        raise ValueError(f"wake.{key} must be a list of nonempty phrases")
+                    values[key] = tuple(values[key])
         sections[name] = section_type(**values)
 
     commands_raw = data.get("commands", {})

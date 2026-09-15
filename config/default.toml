@@ -28,6 +28,11 @@ min_speech_ms = 160
 silence_timeout_ms = 650
 pre_roll_ms = 240
 post_roll_ms = 120
+adaptive_energy = true
+silence_rms_threshold = 0.0
+energy_floor_min = 0.001
+energy_floor_max = 0.02
+max_utterance_ms = 15000
 
 [stt]
 backend = "moonshine"
@@ -59,10 +64,14 @@ factory = "sourccey_desktop_voice.runtime:create_tts"
 preset_path = ""
 
 [wake]
-enabled = false
+enabled = true
 phrases = ["sourccey", "hey sourccey"]
-engaged_seconds = 20.0
-emergency_bypass = true
+engaged_seconds = 0.0
+emergency_bypass = false
+continuation_seconds = 2.0
+fuzzy_threshold = 0.88
+aliases = ["source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy"]
+contextual_aliases = ["cersei", "circe", "sorcerer", "sorcery", "horsey", "horsie", "horsy", "mercy", "mersey", "soros", "sorosy", "sourcing", "source", "sourced seed", "sir see", "source and tv", "source n tv"]
 
 [conversation]
 max_turns = 6

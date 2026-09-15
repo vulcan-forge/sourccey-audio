@@ -10,3 +10,4 @@ build/
 dist/
 artifacts/
 config/host.toml
+config/*.local.toml

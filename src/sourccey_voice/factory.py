@@ -66,6 +66,10 @@ def build_runtime(config: VoiceConfig, speaker: object) -> VoiceRuntime:
         config.wake.engaged_seconds,
         config.wake.emergency_bypass,
         registry,
+        aliases=config.wake.aliases,
+        contextual_aliases=config.wake.contextual_aliases,
+        fuzzy_threshold=config.wake.fuzzy_threshold,
+        continuation_seconds=config.wake.continuation_seconds,
     )
     return VoiceRuntime(
         registry=registry,

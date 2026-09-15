@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from sourccey_voice.commands import CommandRegistry
 from sourccey_voice.config import VadConfig
@@ -11,25 +12,9 @@ from sourccey_voice.wake import WakeSession
 from .fakes import FakeConversation, FakeProbability, FakeRecognizer, FakeRobot, FakeSpeaker, FakeTts
 
 
-def test_sourccey_stt_aliases_are_normalized():
-    assert normalize_transcript("Hello, sourcing.") == "Hello, Sourccey."
-    assert normalize_transcript("Hi sourcey") == "Hi Sourccey"
-    assert normalize_transcript("Hello, Sorsi.") == "Hello, Sourccey."
-    assert normalize_transcript("Soros, can you help?") == "Sourccey, can you help?"
-    assert normalize_transcript("Hey, Sourcy.") == "Hey, Sourccey."
-    assert normalize_transcript("Hi, Searcy.") == "Hi, Sourccey."
-    assert normalize_transcript("Hello, Cersei.") == "Hello, Sourccey."
-    assert normalize_transcript("Sorcerer, are you awake?") == "Sourccey, are you awake?"
-    assert normalize_transcript("Sorcery, are you awake?") == "Sourccey, are you awake?"
-    assert normalize_transcript("Horsey, can you help?") == "Sourccey, can you help?"
-    assert normalize_transcript("Mercy, can you help?") == "Sourccey, can you help?"
-    assert normalize_transcript("Source see, are you awake?") == "Sourccey, are you awake?"
-    assert normalize_transcript("Sourc, are you awake?") == "Sourccey, are you awake?"
-    assert normalize_transcript("Hey source, are you awake?") == "Hey Sourccey, are you awake?"
-    assert normalize_transcript("Hello, sourc, are you awake?") == "Hello, sourc, are you awake?"
-    assert normalize_transcript("Source and TV, help me.") == "Sourccey, help me."
-    assert normalize_transcript("Sourced seed, are you ready?") == "Sourccey, are you ready?"
-    assert normalize_transcript("Sir, see, are you ready?") == "Sourccey, are you ready?"
+def test_normalization_preserves_request_words():
+    assert normalize_transcript("Cersei, tell me about mercy.") == "Sourccey, tell me about mercy."
+    assert normalize_transcript("We talked about Cersei and sorcery.") == "We talked about Cersei and sorcery."
 
 
 def make_runtime(
@@ -172,3 +157,55 @@ def test_low_energy_ends_turn_when_silero_score_stays_high():
     assert runtime.push_pcm16(silence, 16000) == []
     result = runtime.push_pcm16(silence, 16000)
     assert result[0].transcript == "hello"
+
+
+def test_overlong_turn_never_routes_partial_command():
+    vad = VoiceActivityDetector(VadConfig(min_speech_ms=20, max_utterance_ms=1000), 16000)
+    llm = FakeConversation()
+    runtime = make_runtime(
+        recognizer=FakeRecognizer("Command: follow me"),
+        probability=FakeProbability([0.9] * 55), vad=vad, conversation=llm,
+    )
+    frame = (np.ones(320) * 2000).astype("<i2").tobytes()
+    results = [result for _ in range(50) for result in runtime.push_pcm16(frame, 16000)]
+    assert [r.reason for r in results] == ["utterance_too_long"]
+    assert llm.calls == 0
+    assert runtime.robot.executed == []
+
+
+def test_old_window_option_cannot_cut_off_request():
+    vad = VoiceActivityDetector(VadConfig(
+        always_listen_window_ms=100, min_speech_ms=20, silence_timeout_ms=40,
+    ), 16000)
+    runtime = make_runtime(recognizer=FakeRecognizer("hello"),
+                           probability=FakeProbability([0.9] * 22), vad=vad)
+    speech = (np.ones(320) * 2000).astype("<i2").tobytes()
+    for _ in range(20):
+        assert runtime.push_pcm16(speech, 16000) == []
+    silence = np.zeros(320, dtype="<i2").tobytes()
+    assert runtime.push_pcm16(silence, 16000) == []
+    assert runtime.push_pcm16(silence, 16000)[0].transcript == "hello"
+
+
+def test_wrong_audio_rate_is_rejected_before_recognition():
+    runtime = make_runtime(recognizer=FakeRecognizer(""),
+                           probability=FakeProbability([]), vad=VoiceActivityDetector(VadConfig(), 16000))
+    with pytest.raises(ValueError, match="sample rate"):
+        runtime.push_pcm16(b"\x00\x00", 48000)
+
+
+def test_raw_name_decision_reaches_llm_without_corrupting_request():
+    runtime = make_runtime()
+    runtime.wake = WakeSession(True, ["sourccey"], 0, False, runtime.registry)
+    assert runtime.handle_transcript("Sorry, could you help me?").kind == "ignored"
+    result = runtime.handle_transcript("Source see, tell me about Cersei.")
+    assert result.transcript == "tell me about Cersei."
+    assert runtime.conversation.calls == 1
+
+
+def test_reset_discards_pending_name_continuation():
+    runtime = make_runtime()
+    runtime.wake = WakeSession(True, ["sourccey"], 0, False, runtime.registry)
+    runtime.handle_transcript("Sourccey")
+    runtime.reset_audio()
+    assert runtime.handle_transcript("can you help?").kind == "ignored"

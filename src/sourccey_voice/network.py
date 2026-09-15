@@ -186,6 +186,7 @@ class VoiceHostServer:
         self.runtime = runtime
         self.speaker = speaker
         self._last_sequence = -1
+        self._connected = False
 
     async def run(self) -> None:
         try:
@@ -204,6 +205,7 @@ class VoiceHostServer:
             await asyncio.Future()
 
     async def _handle(self, websocket: Any) -> None:
+        owns_session = False
         try:
             raw_hello = await asyncio.wait_for(websocket.recv(), timeout=5.0)
             hello = VoiceMessage.from_json(raw_hello, max_bytes=self.config.max_message_bytes)
@@ -212,6 +214,12 @@ class VoiceHostServer:
             ):
                 await websocket.close(code=4001, reason="authentication failed")
                 return
+            if self._connected:
+                await websocket.close(code=4002, reason="robot audio endpoint already connected")
+                return
+            self._connected = True
+            owns_session = True
+            await asyncio.to_thread(self.runtime.reset_audio)
             # The robot and desktop use independent wall clocks. Anchor audio freshness
             # to their authenticated connection rather than assuming NTP-level alignment.
             clock_offset_ms = int(time.time() * 1000) - hello.created_at_ms
@@ -260,4 +268,9 @@ class VoiceHostServer:
         except Exception as exc:
             logger.info("[NETWORK] robot audio endpoint disconnected: %s", exc)
         finally:
-            self.speaker.detach()
+            if owns_session:
+                self.speaker.detach()
+                try:
+                    await asyncio.to_thread(self.runtime.reset_audio)
+                finally:
+                    self._connected = False

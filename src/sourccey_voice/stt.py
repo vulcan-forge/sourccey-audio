@@ -54,15 +54,19 @@ class MoonshineRecognizer:
         if self._stream is None:
             return ""
         stream, self._stream = self._stream, None
-        transcript = stream.stop()
-        return _transcript_text(transcript)
+        try:
+            transcript = stream.stop()
+            if transcript is None:
+                raise RuntimeError("Moonshine failed to finalize this utterance")
+            return _transcript_text(transcript)
+        finally:
+            stream.close()
 
     def stop(self) -> None:
         if self._stream is not None:
-            try:
-                self._stream.stop()
-            finally:
-                self._stream = None
+            stream, self._stream = self._stream, None
+            # Discarded audio doesn't need one more expensive transcription.
+            stream.close()
 
     def close(self) -> None:
         self.stop()

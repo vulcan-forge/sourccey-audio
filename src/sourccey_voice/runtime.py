@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import threading
 import time
 from dataclasses import dataclass
@@ -12,60 +11,20 @@ from .commands import CommandName, CommandRegistry, CommandResult
 from .conversation import ConversationHistory
 from .types import ConversationEngine, RobotCommandAdapter, Speaker, SpeechRecognizer, TextToSpeech
 from .tts import resample_pcm16
-from .vad import SpeechProbability, VadEvent, VoiceActivityDetector
-from .wake import WakeSession
+from .vad import AdaptiveEnergyGate, SpeechProbability, VadEvent, VoiceActivityDetector
+from .wake import WakeMatcher, WakeSession
 
 logger = logging.getLogger(__name__)
 
-_SOURCCEY_TRANSCRIPT_ALIASES = re.compile(
-    r"\b(?:sourcing|sourcey|sourcy|sorsi|soros|searcy|cersei|circe|sorcerer|sorcery|horsey|horsie|horsy|mercy|mersey|source-see)\b",
-    re.IGNORECASE,
-)
-_SOURCCEY_TRANSCRIPT_PHRASES = re.compile(
-    r"\b(?:source\s+(?:and|n)\s+(?:tv|teevee)|source\s+see|sourced\s+seed|sir,?\s+see)\b",
-    re.IGNORECASE,
-)
+_DEFAULT_MATCHER = WakeMatcher(("sourccey", "hey sourccey"))
 
 
 def normalize_transcript(text: str) -> str:
-    """Normalize the recurring STT spellings of Sourccey's name before routing."""
-    text = _SOURCCEY_TRANSCRIPT_PHRASES.sub("Sourccey", text)
-    text = _SOURCCEY_TRANSCRIPT_ALIASES.sub("Sourccey", text)
-    return _normalize_fuzzy_wake_prefix(text)
-
-
-def _normalize_fuzzy_wake_prefix(text: str) -> str:
-    """Canonicalize a close STT misspelling only when it is used as the wake word."""
-    match = re.match(r"^(\s*(?:hey\s+)?)?([a-z]+)(?=\b)", text, re.IGNORECASE)
-    if not match:
-        return text
-    candidate = match.group(2).casefold()
-    # A five-to-eight letter word within three edits covers clipped names such
-    # as "sourc", phonetic spellings, and small transcription errors without
-    # fuzzy-rewriting ordinary short words in the rest of a conversation.
-    fuzzy_match = len(candidate) >= 5 and _edit_distance(candidate, "sourccey") <= 4
-    phonetic_match = len(candidate) >= 4 and candidate.endswith(("rsey", "rcy", "rci", "rcey", "rsy"))
-    if fuzzy_match or phonetic_match:
-        start, end = match.span(2)
-        return f"{text[:start]}Sourccey{text[end:]}"
+    """Compatibility helper: normalize a matched prefix, never request contents."""
+    match = _DEFAULT_MATCHER.match(text)
+    if match:
+        return "Sourccey" + (", " + match.remainder if match.remainder else "")
     return text
-
-
-def _edit_distance(left: str, right: str) -> int:
-    """Small dependency-free Levenshtein distance implementation."""
-    if len(left) > len(right):
-        left, right = right, left
-    previous = list(range(len(left) + 1))
-    for index, right_character in enumerate(right, start=1):
-        current = [index]
-        for column, left_character in enumerate(left, start=1):
-            current.append(min(
-                current[-1] + 1,
-                previous[column] + 1,
-                previous[column - 1] + (left_character != right_character),
-            ))
-        previous = current
-    return previous[-1]
 
 
 @dataclass(frozen=True)
@@ -113,25 +72,29 @@ class VoiceRuntime:
         self.latency_metrics = latency_metrics
         self._lock = threading.RLock()
         self._last_audio_diagnostic_at = 0.0
-        self._always_listen_samples = 0
-        self._always_listen_active = False
+        self._energy_gate = AdaptiveEnergyGate(vad.config) if vad else None
+        self._turn_sample_count = 0
+        self._turn_squared_sum = 0.0
+        self._turn_clipped = 0
+        if vad and vad.config.always_listen_window_ms:
+            logger.warning("[VAD] fixed-window setting is retired; using complete speech turns")
 
     def push_pcm16(self, pcm16: bytes, sample_rate: int) -> list[InteractionResult]:
         if self.recognizer is None or self.probability is None or self.vad is None:
             raise RuntimeError("audio input requires recognizer, VAD probability, and VAD state machine")
         if len(pcm16) % 2:
             raise ValueError("PCM16 payload must contain complete samples")
+        if sample_rate != self.vad.sample_rate:
+            raise ValueError("input sample rate does not match configured VAD sample rate")
         samples = np.frombuffer(pcm16, dtype="<i2").astype(np.float32) / 32768.0
+        if not samples.size:
+            return []
         with self._lock:
-            if self.vad.config.always_listen_window_ms:
-                return self._push_always_listen(samples, sample_rate)
             probability = self.probability.probability(samples, sample_rate)
             rms = float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
-            # In a noisy robot environment Silero can remain confident after
-            # the person stops. Once a turn has begun, actual near-silence is
-            # a reliable endpoint signal and prevents unbounded transcripts.
-            if self.vad.is_speaking and rms < self.vad.config.silence_rms_threshold:
-                probability = 0.0
+            probability = self._energy_gate.apply(
+                rms, probability, self.vad.is_speaking, samples.size / sample_rate
+            )
             now = time.monotonic()
             if self.debug_partials and now - self._last_audio_diagnostic_at >= 1.0:
                 logger.info(
@@ -146,50 +109,72 @@ class VoiceRuntime:
                 log = logger.debug if update.event == VadEvent.SPEECH_CONTINUING else logger.info
                 log("[VAD] %s", update.event.value)
                 if update.event == VadEvent.SPEECH_STARTED:
+                    self.wake.begin_utterance()
+                    self._turn_sample_count = 0
+                    self._turn_squared_sum = 0.0
+                    self._turn_clipped = 0
                     self.recognizer.start()
-                    self.recognizer.push_audio(update.samples, sample_rate)
+                    self._feed_recognizer(update.samples, sample_rate)
                     if self.speaker.is_playing:
                         logger.info("[VAD] speech_started during playback")
                 elif update.event == VadEvent.SPEECH_CONTINUING:
-                    self.recognizer.push_audio(update.samples, sample_rate)
+                    self._feed_recognizer(update.samples, sample_rate)
                     if self.debug_partials:
                         partial = self.recognizer.partial_transcript()
                         if partial:
                             logger.debug('[STT partial] "%s"', partial)
                 elif update.event == VadEvent.SPEECH_ENDED:
                     if update.samples.size:
-                        self.recognizer.push_audio(update.samples, sample_rate)
+                        self._feed_recognizer(update.samples, sample_rate)
                     started = time.perf_counter()
-                    transcript = normalize_transcript(self.recognizer.finalize().strip())
-                    logger.info('[STT] "%s"', transcript)
+                    transcript = self.recognizer.finalize().strip()
+                    logger.info('[STT raw] %r', transcript)
+                    count = max(1, self._turn_sample_count)
+                    logger.info(
+                        "[AUDIO turn] duration_ms=%.0f rms=%.4f clipped_pct=%.2f noise_rms=%.4f",
+                        count * 1000 / sample_rate, (self._turn_squared_sum / count) ** 0.5,
+                        100 * self._turn_clipped / count, self._energy_gate.noise_rms,
+                    )
+                    if self._turn_clipped / count > 0.01:
+                        logger.warning("[AUDIO] clipping detected; reduce microphone capture gain")
                     if self.latency_metrics:
                         logger.info(
                             "[LATENCY] speech_end_to_final_stt_ms=%.1f",
                             (time.perf_counter() - started) * 1000,
                         )
-                    if transcript:
-                        results.append(self.handle_transcript(transcript))
+                    results.append(self.handle_transcript(transcript))
+                elif update.event == VadEvent.SPEECH_ABORTED:
+                    self.recognizer.stop()
+                    self.probability.reset()
+                    self.wake.reset()
+                    logger.warning("[STT] dropped overlong turn; no partial command was routed")
+                    results.append(InteractionResult("ignored", "", reason="utterance_too_long"))
             return results
 
-    def _push_always_listen(self, samples: np.ndarray, sample_rate: int) -> list[InteractionResult]:
-        """Fixed transcription windows for noisy rooms where VAD cannot be trusted."""
-        if not self._always_listen_active:
-            self.recognizer.start()
-            self._always_listen_active = True
+    def _feed_recognizer(self, samples: np.ndarray, sample_rate: int) -> None:
+        self._turn_sample_count += samples.size
+        self._turn_squared_sum += float(np.sum(samples.astype(np.float64) ** 2))
+        self._turn_clipped += int(np.count_nonzero(np.abs(samples) >= 0.999))
         self.recognizer.push_audio(samples, sample_rate)
-        self._always_listen_samples += samples.size
-        window_samples = int(sample_rate * self.vad.config.always_listen_window_ms / 1000)
-        if self._always_listen_samples < window_samples:
-            return []
-        self._always_listen_samples = 0
-        self._always_listen_active = False
-        transcript = normalize_transcript(self.recognizer.finalize().strip())
-        logger.info('[STT] "%s"', transcript)
-        return [self.handle_transcript(transcript)] if transcript else []
+
+    def reset_audio(self) -> None:
+        """Discard recognition and wake state when a transport session changes."""
+        with self._lock:
+            if self.recognizer:
+                self.recognizer.stop()
+            if self.vad:
+                self.vad.reset()
+            if self.probability:
+                self.probability.reset()
+            if self._energy_gate:
+                self._energy_gate.reset()
+            self.wake.reset()
 
     def handle_transcript(self, transcript: str) -> InteractionResult:
         with self._lock:
             decision = self.wake.evaluate(transcript)
+            logger.info("[WAKE] accepted=%s reason=%s matched=%r request=%r",
+                        decision.accepted, decision.reason, decision.matched, decision.text)
             if not decision.accepted:
                 return InteractionResult("ignored", transcript, reason=decision.reason)
             text = decision.text

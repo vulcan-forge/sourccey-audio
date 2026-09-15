@@ -40,6 +40,8 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("host", help="run the client/host intelligence and audio server")
     sub.add_parser("robot-audio", help="run microphone, AEC, and speaker transport on Sourccey")
     sub.add_parser("config-check", help="validate configuration without loading models")
+    replay = sub.add_parser("replay", help="check a recorded WAV through STT and wake gating, without playback or robot actions")
+    replay.add_argument("wav", type=Path, help="mono PCM16 WAV at the configured audio sample rate")
     developer = sub.add_parser("dev", help="test routing without models or physical hardware")
     developer.add_argument("--once", help="process one transcript and exit")
     models = sub.add_parser("models", help="download a model into the external cache")
@@ -122,6 +124,13 @@ def main(argv: list[str] | None = None) -> int:
             if args.kind != "tts":
                 print(f"Set {setting} to that path in your config.")
             return 0
+        if args.command == "replay":
+            from .replay import replay_wav
+
+            config = _load(args, validate=False)
+            _configure_logging(config)
+            replay_wav(args.wav, config)
+            return 0
 
         config = _load(args, validate=True)
         _configure_logging(config)
@@ -141,4 +150,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
