@@ -81,7 +81,7 @@ class WakeMatcher:
                 continue
             candidate = words[offset]
             remainder = text[tokens[offset].end():].lstrip(" \t\r\n,.:;!?-")
-            if len(candidate) < 5 or not _REQUEST.match(remainder):
+            if len(candidate) < 5 or len(candidate) > 9 or not _DIRECT_REQUEST.match(remainder):
                 continue
             # Tight orthographic fallback only against canonical names, never
             # against ambiguous aliases (which would multiply false matches).
