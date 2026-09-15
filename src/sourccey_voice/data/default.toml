@@ -65,7 +65,7 @@ preset_path = ""
 
 [wake]
 enabled = true
-phrases = ["sourccey", "hey sourccey"]
+phrases = ["sourccey", "hey sourccey", "hello sourccey"]
 engaged_seconds = 0.0
 emergency_bypass = false
 continuation_seconds = 2.0

@@ -67,6 +67,14 @@ def test_observed_name_variants_in_direct_address(prefix):
     assert match.remainder == "can you grab me a beer?"
 
 
+@pytest.mark.parametrize("prefix", ["Hello Sourccey", "Hello Sorcery", "Hello Source", "Hello Mercy"])
+def test_hello_fuzzy_name_variants_are_leading_only(prefix):
+    match = WakeMatcher(["sourccey"]).match(f"{prefix}, get me a beer")
+    assert match is not None
+    assert match.remainder == "get me a beer"
+    assert WakeMatcher(["sourccey"]).match(f"I said {prefix}, get me a beer") is None
+
+
 @pytest.mark.parametrize("text", [
     "Sorry, can you help?", "Surely this works", "Source code needs fixing",
     "Mercy is important", "Cersei was in that show", "Soros was on the news",

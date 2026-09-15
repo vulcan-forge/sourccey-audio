@@ -89,7 +89,7 @@ class TtsConfig:
 @dataclass(frozen=True)
 class WakeConfig:
     enabled: bool = True
-    phrases: tuple[str, ...] = ("sourccey", "hey sourccey")
+    phrases: tuple[str, ...] = ("sourccey", "hey sourccey", "hello sourccey")
     engaged_seconds: float = 0.0
     emergency_bypass: bool = False
     aliases: tuple[str, ...] = DEFAULT_ALIASES
