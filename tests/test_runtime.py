@@ -4,12 +4,16 @@ import pytest
 from sourccey_voice.commands import CommandRegistry
 from sourccey_voice.config import VadConfig
 from sourccey_voice.conversation import ConversationHistory
-from sourccey_voice.runtime import VoiceRuntime, normalize_transcript
+from sourccey_voice.runtime import VoiceRuntime, normalize_transcript, pronunciation_text
 from sourccey_voice.types import ConversationReply
 from sourccey_voice.vad import VoiceActivityDetector
 from sourccey_voice.wake import WakeSession
 
 from .fakes import FakeConversation, FakeProbability, FakeRecognizer, FakeRobot, FakeSpeaker, FakeTts
+
+
+def test_tts_uses_pronunciation_spelling_without_changing_canonical_text():
+    assert pronunciation_text("Sourccey is ready. Tell Sourccey's friend.") == "Soarsee is ready. Tell Soarsee's friend."
 
 
 def test_normalization_preserves_request_words():

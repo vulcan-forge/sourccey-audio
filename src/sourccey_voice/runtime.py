@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -15,6 +16,12 @@ from .vad import AdaptiveEnergyGate, SpeechProbability, VadEvent, VoiceActivityD
 from .wake import WakeMatcher, WakeSession
 
 logger = logging.getLogger(__name__)
+_TTS_NAME = re.compile(r"\bsourccey\b", re.IGNORECASE)
+
+
+def pronunciation_text(text: str) -> str:
+    """Use the spelling that the configured voice pronounces correctly."""
+    return _TTS_NAME.sub("Soarsee", text)
 
 _DEFAULT_MATCHER = WakeMatcher(("sourccey", "hey sourccey"))
 
@@ -250,7 +257,7 @@ class VoiceRuntime:
     def _speak(self, text: str) -> None:
         try:
             started = time.perf_counter()
-            audio = resample_pcm16(self.tts.synthesize(text), self.output_sample_rate)
+            audio = resample_pcm16(self.tts.synthesize(pronunciation_text(text)), self.output_sample_rate)
             self.speaker.play(audio)
             logger.info('[TTS] "%s"', text)
             if self.latency_metrics:
