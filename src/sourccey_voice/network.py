@@ -118,7 +118,7 @@ def audio_payload(pcm16: bytes, sample_rate: int) -> dict[str, object]:
 
 
 def decode_audio(message: VoiceMessage) -> tuple[bytes, int]:
-    if message.type not in {MessageType.AUDIO_INPUT, MessageType.AUDIO_OUTPUT}:
+    if message.type not in {MessageType.AUDIO_INPUT, MessageType.AUDIO_OUTPUT, MessageType.AUDIO_PREVIEW}:
         raise ValueError("message does not contain audio")
     return (
         base64.b64decode(str(message.payload["pcm16_b64"]), validate=True),
