@@ -77,6 +77,10 @@ uses the original transcript and leaves the request unchanged:
   request in the same utterance. This does not identify the next speaker.
 - `wake.engaged_seconds = 0` prevents an ongoing conversation window from
   admitting later background speech.
+- `wake.accept_so_prefix = true` accepts every leading `So ...` sentence as a
+  wake. This is intentionally permissive for poor microphones and can increase
+  background activations; set it to `false` when room speech matters more than
+  recall.
 
 Speech is segmented at pauses, with pre-roll preserving the beginning of the
 name. Adaptive energy handling estimates background level between turns and

@@ -118,6 +118,19 @@ def test_sorcine_close_spelling_is_addressed_only_with_a_request():
     assert not session.evaluate("Sorcine was mentioned in the news.").accepted
 
 
+def test_so_prefix_is_explicitly_accepted_when_enabled():
+    session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry())
+    result = session.evaluate("So, get me the beer.")
+    assert result.accepted
+    assert result.reason == "so_prefix"
+    assert result.text == "get me the beer."
+
+
+def test_so_prefix_can_be_disabled_for_noisy_rooms():
+    session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry(), accept_so_prefix=False)
+    assert not session.evaluate("So, get me the beer.").accepted
+
+
 def test_name_alone_claims_one_continuation_at_speech_start():
     now = [0.0]
     session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry(), clock=lambda: now[0])

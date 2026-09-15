@@ -96,6 +96,7 @@ class WakeConfig:
     contextual_aliases: tuple[str, ...] = DEFAULT_CONTEXTUAL_ALIASES
     fuzzy_threshold: float = 0.65
     continuation_seconds: float = 2.0
+    accept_so_prefix: bool = True
 
 
 @dataclass(frozen=True)

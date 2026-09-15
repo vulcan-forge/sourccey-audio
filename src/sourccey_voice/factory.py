@@ -70,6 +70,7 @@ def build_runtime(config: VoiceConfig, speaker: object) -> VoiceRuntime:
         contextual_aliases=config.wake.contextual_aliases,
         fuzzy_threshold=config.wake.fuzzy_threshold,
         continuation_seconds=config.wake.continuation_seconds,
+        accept_so_prefix=config.wake.accept_so_prefix,
     )
     return VoiceRuntime(
         registry=registry,

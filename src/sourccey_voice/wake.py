@@ -43,11 +43,13 @@ class WakeMatcher:
         self, phrases: Iterable[str], *, aliases: Iterable[str] = DEFAULT_ALIASES,
         contextual_aliases: Iterable[str] = DEFAULT_CONTEXTUAL_ALIASES,
         fuzzy_threshold: float = 0.65,
+        accept_so_prefix: bool = True,
     ) -> None:
         self.phrases = self._tokenize(phrases)
         self.aliases = self._tokenize(aliases)
         self.contextual_aliases = self._tokenize(contextual_aliases)
         self.fuzzy_threshold = fuzzy_threshold
+        self.accept_so_prefix = accept_so_prefix
 
     @staticmethod
     def _tokenize(phrases: Iterable[str]) -> tuple[tuple[str, ...], ...]:
@@ -60,6 +62,10 @@ class WakeMatcher:
         if text[:tokens[0].start()].strip(" \t\r\n\"'.,!?-"):
             return None
         words = tuple(t.group().casefold() for t in tokens)
+        if self.accept_so_prefix and words[0] == "so" and len(words) > 1:
+            remainder = text[tokens[0].end():].lstrip(" \t\r\n,.:;!?-")
+            if remainder:
+                return PrefixMatch(text[:tokens[0].end()].strip(), remainder, "so_prefix")
         # Greeting tolerance is restricted to a leading "hey" or "hello".
         offsets = (0, 1) if words[0] in {"hey", "hello"} else (0,)
         for offset in offsets:
@@ -111,6 +117,7 @@ class WakeSession:
         contextual_aliases: Iterable[str] = DEFAULT_CONTEXTUAL_ALIASES,
         fuzzy_threshold: float = 0.65,
         continuation_seconds: float = 2.0,
+        accept_so_prefix: bool = True,
     ) -> None:
         self.enabled = enabled
         self.phrases = tuple(phrases)
@@ -120,7 +127,8 @@ class WakeSession:
         self._clock = clock
         self.continuation_seconds = continuation_seconds
         self.matcher = WakeMatcher(self.phrases, aliases=aliases,
-                                   contextual_aliases=contextual_aliases, fuzzy_threshold=fuzzy_threshold)
+                                   contextual_aliases=contextual_aliases, fuzzy_threshold=fuzzy_threshold,
+                                   accept_so_prefix=accept_so_prefix)
         self.reset()
 
     def reset(self) -> None:
