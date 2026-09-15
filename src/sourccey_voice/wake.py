@@ -42,7 +42,7 @@ class WakeMatcher:
     def __init__(
         self, phrases: Iterable[str], *, aliases: Iterable[str] = DEFAULT_ALIASES,
         contextual_aliases: Iterable[str] = DEFAULT_CONTEXTUAL_ALIASES,
-        fuzzy_threshold: float = 0.88,
+        fuzzy_threshold: float = 0.65,
     ) -> None:
         self.phrases = self._tokenize(phrases)
         self.aliases = self._tokenize(aliases)
@@ -109,7 +109,7 @@ class WakeSession:
         clock: Callable[[], float] = time.monotonic,
         aliases: Iterable[str] = DEFAULT_ALIASES,
         contextual_aliases: Iterable[str] = DEFAULT_CONTEXTUAL_ALIASES,
-        fuzzy_threshold: float = 0.88,
+        fuzzy_threshold: float = 0.65,
         continuation_seconds: float = 2.0,
     ) -> None:
         self.enabled = enabled

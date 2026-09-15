@@ -109,6 +109,15 @@ def test_sorosy_imperative_request_is_addressed():
     assert result.text == "get me the beer!"
 
 
+def test_sorcine_close_spelling_is_addressed_only_with_a_request():
+    session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry())
+    result = session.evaluate("Sorcine, get me the beer.")
+    assert result.accepted
+    assert result.reason == "close_spelling"
+    assert result.text == "get me the beer."
+    assert not session.evaluate("Sorcine was mentioned in the news.").accepted
+
+
 def test_name_alone_claims_one_continuation_at_speech_start():
     now = [0.0]
     session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry(), clock=lambda: now[0])

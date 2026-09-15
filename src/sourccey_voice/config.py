@@ -94,7 +94,7 @@ class WakeConfig:
     emergency_bypass: bool = False
     aliases: tuple[str, ...] = DEFAULT_ALIASES
     contextual_aliases: tuple[str, ...] = DEFAULT_CONTEXTUAL_ALIASES
-    fuzzy_threshold: float = 0.88
+    fuzzy_threshold: float = 0.65
     continuation_seconds: float = 2.0
 
 
