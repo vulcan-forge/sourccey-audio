@@ -10,7 +10,7 @@ from .commands import CommandRegistry, PRIORITY_COMMANDS
 
 
 # These are spelling hints, not acoustic confidence or a speaker identity check.
-DEFAULT_ALIASES = ("source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy", "sorcery")
+DEFAULT_ALIASES = ("source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy", "sorcery", "sorsey")
 DEFAULT_CONTEXTUAL_ALIASES = (
     "cersei", "circe", "sorcerer", "sorcery", "horsey", "horsie", "horsy",
     "mercy", "mersey", "soros", "sorosy", "sourcing", "source", "sourced seed", "sir see",
@@ -87,7 +87,11 @@ class WakeMatcher:
                 continue
             candidate = words[offset]
             remainder = text[tokens[offset].end():].lstrip(" \t\r\n,.:;!?-")
-            if len(candidate) < 5 or len(candidate) > 9 or not _DIRECT_REQUEST.match(remainder):
+            if len(candidate) < 5 or len(candidate) > 9:
+                continue
+            # A leading greeting is a strong address signal; allow natural
+            # conversational requests such as "wish Miles good morning".
+            if words[0] not in {"hey", "hello"} and not _DIRECT_REQUEST.match(remainder):
                 continue
             # Tight orthographic fallback only against canonical names, never
             # against ambiguous aliases (which would multiply false matches).
