@@ -22,6 +22,7 @@ class MessageType(StrEnum):
     AUDIO_INPUT = "audio.input.v1"
     AUDIO_OUTPUT = "audio.output.v1"
     AUDIO_INTERRUPT = "audio.interrupt.v1"
+    AUDIO_PREVIEW = "audio.preview.v1"
     VOICE_EVENT = "voice.event.v1"
     ERROR = "error.v1"
 
@@ -87,7 +88,7 @@ class VoiceMessage:
         return message
 
     def validate_payload(self) -> None:
-        if self.type in {MessageType.AUDIO_INPUT, MessageType.AUDIO_OUTPUT}:
+        if self.type in {MessageType.AUDIO_INPUT, MessageType.AUDIO_OUTPUT, MessageType.AUDIO_PREVIEW}:
             encoded = self.payload.get("pcm16_b64")
             sample_rate = self.payload.get("sample_rate")
             if not isinstance(encoded, str) or not isinstance(sample_rate, int):
@@ -214,6 +215,10 @@ class VoiceHostServer:
             ):
                 await websocket.close(code=4001, reason="authentication failed")
                 return
+            role = str(hello.payload.get("role", "robot"))
+            if role == "preview":
+                await self._handle_preview(websocket)
+                return
             if self._connected:
                 await websocket.close(code=4002, reason="robot audio endpoint already connected")
                 return
@@ -274,3 +279,16 @@ class VoiceHostServer:
                     await asyncio.to_thread(self.runtime.reset_audio)
                 finally:
                     self._connected = False
+
+    async def _handle_preview(self, websocket: Any) -> None:
+        """Accept Lab audition audio and forward it through the robot speaker."""
+        logger.info("[NETWORK] voice preview client connected")
+        async for raw in websocket:
+            message = VoiceMessage.from_json(raw, max_bytes=self.config.max_message_bytes)
+            if message.type == MessageType.AUDIO_PREVIEW:
+                pcm16, sample_rate = decode_audio(message)
+                await asyncio.to_thread(self.speaker.play, SpeechAudio(pcm16, sample_rate))
+            elif message.type == MessageType.AUDIO_INTERRUPT:
+                await asyncio.to_thread(self.speaker.interrupt)
+            elif message.type != MessageType.HEARTBEAT:
+                raise ValueError(f"unexpected preview message type: {message.type.value}")
