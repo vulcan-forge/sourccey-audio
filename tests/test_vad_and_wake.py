@@ -118,6 +118,13 @@ def test_sorcine_close_spelling_is_addressed_only_with_a_request():
     assert not session.evaluate("Sorcine was mentioned in the news.").accepted
 
 
+def test_sorcery_first_word_is_a_direct_wake_variant():
+    session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry())
+    result = session.evaluate("Sorcery. Hard drugs are fun.")
+    assert result.accepted
+    assert result.text == "Hard drugs are fun."
+
+
 def test_so_prefix_is_explicitly_accepted_when_enabled():
     session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry())
     result = session.evaluate("So, get me the beer.")

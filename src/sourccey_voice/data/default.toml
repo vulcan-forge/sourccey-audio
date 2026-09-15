@@ -71,7 +71,7 @@ emergency_bypass = false
 continuation_seconds = 2.0
 accept_so_prefix = true
 fuzzy_threshold = 0.65
-aliases = ["source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy"]
+aliases = ["source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy", "sorcery"]
 contextual_aliases = ["cersei", "circe", "sorcerer", "sorcery", "horsey", "horsie", "horsy", "mercy", "mersey", "soros", "sorosy", "sourcing", "source", "sourced seed", "sir see", "source and tv", "source n tv"]
 
 [conversation]

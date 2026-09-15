@@ -10,7 +10,7 @@ from .commands import CommandRegistry, PRIORITY_COMMANDS
 
 
 # These are spelling hints, not acoustic confidence or a speaker identity check.
-DEFAULT_ALIASES = ("source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy")
+DEFAULT_ALIASES = ("source see", "source c", "source sea", "source-see", "sourcey", "sourcy", "sorsi", "searcy", "sorcery")
 DEFAULT_CONTEXTUAL_ALIASES = (
     "cersei", "circe", "sorcerer", "sorcery", "horsey", "horsie", "horsy",
     "mercy", "mersey", "soros", "sorosy", "sourcing", "source", "sourced seed", "sir see",
