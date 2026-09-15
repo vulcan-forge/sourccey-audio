@@ -182,12 +182,13 @@ class WebSocketSpeaker(Speaker):
 
 
 class VoiceHostServer:
-    def __init__(self, config: Any, runtime: Any, speaker: WebSocketSpeaker) -> None:
+    def __init__(self, config: Any, runtime: Any, speaker: WebSocketSpeaker, *, ignore_audio: bool = False) -> None:
         self.config = config
         self.runtime = runtime
         self.speaker = speaker
         self._last_sequence = -1
         self._connected = False
+        self.ignore_audio = ignore_audio
 
     async def run(self) -> None:
         try:
@@ -241,6 +242,8 @@ class VoiceHostServer:
                         raise ValueError("duplicate or out-of-order message")
                     self._last_sequence = message.sequence
                     if message.type == MessageType.AUDIO_INPUT:
+                        if self.ignore_audio:
+                            continue
                         received_age_ms = (
                             int(time.time() * 1000) - (message.created_at_ms + clock_offset_ms)
                         )

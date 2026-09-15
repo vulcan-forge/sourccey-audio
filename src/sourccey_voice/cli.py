@@ -37,7 +37,8 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sourccey-voice", description="Local voice runtime for Sourccey")
     parser.add_argument("--config", type=Path, help="TOML configuration path")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("host", help="run the client/host intelligence and audio server")
+    host = sub.add_parser("host", help="run the client/host intelligence and audio server")
+    host.add_argument("--preview-only", action="store_true", help="forward Voice Lab previews but ignore robot microphone audio")
     sub.add_parser("robot-audio", help="run microphone, AEC, and speaker transport on Sourccey")
     sub.add_parser("config-check", help="validate configuration without loading models")
     replay = sub.add_parser("replay", help="check a recorded WAV through STT and wake gating, without playback or robot actions")
@@ -140,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "host":
             speaker = WebSocketSpeaker()
             runtime = build_runtime(config, speaker)
-            asyncio.run(VoiceHostServer(config.network, runtime, speaker).run())
+            asyncio.run(VoiceHostServer(config.network, runtime, speaker, ignore_audio=args.preview_only).run())
             return 0
     except (RuntimeError, ValueError, OSError) as exc:
         print(f"sourccey-voice: {exc}", file=sys.stderr)
