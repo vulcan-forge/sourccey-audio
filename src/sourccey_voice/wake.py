@@ -24,7 +24,7 @@ _REQUEST = re.compile(
     r"\b(?:you|your|you're|youre)\b)",
     re.IGNORECASE,
 )
-_DIRECT_REQUEST = re.compile(r"^(?:(?:can|could|would|will|do|did|are|have)\s+you\b|please\b|(?:what|where|when|why|how|who)\b|(?:help|tell|show|explain|grab|fetch|bring|follow|stop|cancel|freeze|command)\b)", re.IGNORECASE)
+_DIRECT_REQUEST = re.compile(r"^(?:(?:can|could|would|will|do|did|are|have)\s+you\b|please\b|(?:what|where|when|why|how|who)\b|(?:help|tell|show|explain|get|grab|fetch|bring|make|play|put|take|follow|stop|cancel|freeze|command)\b)", re.IGNORECASE)
 _DIRECT_REFERENCE = re.compile(r"\b(?:you|your|you're|youre)\b", re.IGNORECASE)
 
 

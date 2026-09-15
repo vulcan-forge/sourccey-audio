@@ -102,6 +102,13 @@ def test_source_variant_with_second_person_statement_is_addressed():
     assert not session.evaluate("Source code needs a voice.").accepted
 
 
+def test_sorosy_imperative_request_is_addressed():
+    session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry())
+    result = session.evaluate("Sorosy, get me the beer!")
+    assert result.accepted
+    assert result.text == "get me the beer!"
+
+
 def test_name_alone_claims_one_continuation_at_speech_start():
     now = [0.0]
     session = WakeSession(True, ["sourccey"], 0, False, CommandRegistry(), clock=lambda: now[0])
